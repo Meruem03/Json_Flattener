@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JSON Config Flattener</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0D1117;
+      --surface:   #161B22;
+      --surface2:  #21262D;
+      --border:    #30363D;
+      --text:      #E6EDF3;
+      --muted:     #8B949E;
+      --dim:       #484F58;
+      --blue:      #388BFD;
+      --blue-bg:   rgba(56,139,253,.1);
+      --green:     #3FB950;
+      --green-bg:  rgba(63,185,80,.1);
+      --red:       #F85149;
+      --orange:    #E3B341;
+      --mono: 'JetBrains Mono', 'Fira Code', monospace;
+      --sans: 'Inter', system-ui, sans-serif;
+      --r: 8px;
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ─── Header ─────────────────────────────── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 20px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      gap: 12px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-mark {
+      width: 30px;
+      height: 30px;
+      background: var(--blue);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 500;
+      color: #fff;
+      flex-shrink: 0;
+      letter-spacing: -1px;
+    }
+
+    .logo-copy strong {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .logo-copy span {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 3px 10px;
+      font-size: 11px;
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+
+    .pill em { color: var(--orange); font-style: normal; }
+
+    /* ─── Workspace ──────────────────────────── */
+    .workspace {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 14px 20px;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .editors {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 90px 1fr;
+      min-height: 0;
+    }
+
+    /* ─── Panel ──────────────────────────────── */
+    .panel {
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      overflow: hidden;
+      background: var(--surface);
+      transition: border-color .15s;
+    }
+
+    .panel:focus-within { border-color: rgba(56,139,253,.4); }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+      flex-shrink: 0;
+    }
+
+    .panel-title {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 10.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--muted);
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .dot-b { background: var(--blue); }
+    .dot-g { background: var(--green); }
+
+    .panel-btns { display: flex; gap: 4px; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      border-radius: 5px;
+      padding: 3px 9px;
+      font-family: var(--sans);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all .12s;
+      line-height: 1.4;
+    }
+
+    .btn:hover {
+      background: var(--surface);
+      color: var(--text);
+      border-color: var(--muted);
+    }
+
+    .panel-body { flex: 1; min-height: 0; }
+
+    textarea {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      border: none;
+      outline: none;
+      resize: none;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      line-height: 1.65;
+      color: var(--text);
+      padding: 13px 15px;
+      tab-size: 2;
+      caret-color: var(--blue);
+    }
+
+    textarea::placeholder { color: var(--dim); }
+
+    .panel-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 12px;
+      border-top: 1px solid var(--border);
+      background: var(--surface2);
+      flex-shrink: 0;
+      min-height: 26px;
+    }
+
+    .stat {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--dim);
+    }
+
+    .err {
+      font-size: 10px;
+      color: var(--red);
+      display: none;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 60%;
+      text-align: right;
+    }
+
+    /* ─── Transform Column ───────────────────── */
+    .tfm-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 0 10px;
+    }
+
+    .tfm-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      color: var(--muted);
+      padding: 11px 8px;
+      font-family: var(--sans);
+      font-size: 10.5px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 66px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      transition: all .15s;
+      line-height: 1.2;
+    }
+
+    .tfm-btn:hover {
+      border-color: var(--blue);
+      color: var(--blue);
+      background: var(--blue-bg);
+    }
+
+    .tfm-btn:active { transform: scale(.96); }
+
+    .tfm-btn.primary {
+      background: var(--blue);
+      border-color: var(--blue);
+      color: #fff;
+    }
+
+    .tfm-btn.primary:hover {
+      background: #5a9ef7;
+      border-color: #5a9ef7;
+      color: #fff;
+    }
+
+    .tfm-icon { font-size: 16px; }
+
+    .tfm-sep {
+      width: 1px;
+      height: 14px;
+      background: var(--border);
+    }
+
+    .swap-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--dim);
+      cursor: pointer;
+      font-size: 14px;
+      transition: all .15s;
+    }
+
+    .swap-btn:hover {
+      border-color: var(--muted);
+      color: var(--muted);
+    }
+
+    /* ─── Status Bar ─────────────────────────── */
+    .statusbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 10.5px;
+      color: var(--dim);
+      padding: 0 2px;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .statusbar kbd {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-family: var(--mono);
+      font-size: 9.5px;
+      color: var(--muted);
+    }
+
+    code {
+      font-family: var(--mono);
+      color: var(--orange);
+    }
+
+    /* ─── Toast ──────────────────────────────── */
+    .toast {
+      position: fixed;
+      bottom: 18px;
+      right: 18px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 9px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.55);
+      transform: translateY(56px);
+      opacity: 0;
+      transition: transform .22s cubic-bezier(.34,1.56,.64,1), opacity .22s ease;
+      z-index: 999;
+      pointer-events: none;
+    }
+
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .t-ok  { color: var(--green); }
+    .t-err { color: var(--red); }
+
+    /* ─── Responsive ─────────────────────────── */
+    @media (max-width: 700px) {
+      body { overflow: auto; height: auto; }
+      .workspace { padding: 10px 12px; }
+      .editors {
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+      .tfm-col {
+        flex-direction: row;
+        justify-content: center;
+        padding: 10px 0;
+        gap: 6px;
+      }
+      .tfm-sep { width: 14px; height: 1px; }
+      .panel-body { height: 360px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ─── Header ─────────────────────────────────────────────────────────── -->
+<header class="header">
+  <div class="logo">
+    <div class="logo-mark">{}</div>
+    <div class="logo-copy">
+      <strong>JSON Config Flattener</strong>
+      <span>Flatten nested JSON ↔ key:value pairs</span>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="pill">separator <em>":"</em></div>
+  </div>
+</header>
+
+<!-- ─── Workspace ─────────────────────────────────────────────────────── -->
+<div class="workspace">
+  <div class="editors">
+
+    <!-- Left: Nested JSON Input -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title"><div class="dot dot-b"></div>Nested JSON</div>
+        <div class="panel-btns">
+          <button class="btn" id="paste-btn">
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M5.75 1a.75.75 0 0 0-.75.75V3h-1A1.75 1.75 0 0 0 2.25 4.75v9.5c0 .966.784 1.75 1.75 1.75h8a1.75 1.75 0 0 0 1.75-1.75v-9.5A1.75 1.75 0 0 0 12 3h-1V1.75a.75.75 0 0 0-.75-.75h-4.5zm.75 3h4V2.5h-4V4zm-2.5.25h8.5v9.25a.25.25 0 0 1-.25.25H4a.25.25 0 0 1-.25-.25V4.25z"/>
+            </svg>
+            Paste
+          </button>
+          <button class="btn" id="clear-l">Clear</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <textarea id="left" spellcheck="false" placeholder='{
+  "Serilog": {
+    "MinimumLevel": {
+      "Default": "Information"
+    }
+  },
+  "Tracing": {
+    "EnableTracing": true
+  }
+}'></textarea>
+      </div>
+      <div class="panel-foot">
+        <span class="stat" id="stat-l">—</span>
+        <span class="err" id="err-l"></span>
+      </div>
+    </div>
+
+    <!-- Center: Transform Controls -->
+    <div class="tfm-col">
+      <button class="tfm-btn primary" id="btn-flatten" title="Ctrl+Enter">
+        <span class="tfm-icon">→</span>
+        Flatten
+      </button>
+      <div class="tfm-sep"></div>
+      <button class="swap-btn" id="btn-swap" title="Swap panels">⇄</button>
+      <div class="tfm-sep"></div>
+      <button class="tfm-btn" id="btn-unflatten" title="Ctrl+Shift+Enter">
+        <span class="tfm-icon">←</span>
+        Unflatten
+      </button>
+    </div>
+
+    <!-- Right: Flat Key:Value Output -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title"><div class="dot dot-g"></div>Flat Key:Value</div>
+        <div class="panel-btns">
+          <button class="btn" id="btn-copy">
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25v-7.5z"/>
+              <path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25v-7.5zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25h-7.5z"/>
+            </svg>
+            Copy
+          </button>
+          <button class="btn" id="btn-dl">
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14z"/>
+              <path d="M7.25 7.689V2a.75.75 0 0 1 1.5 0v5.689l1.97-1.97a.749.749 0 1 1 1.06 1.06l-3.25 3.25a.749.749 0 0 1-1.06 0L4.22 6.779a.749.749 0 1 1 1.06-1.06l1.97 1.97z"/>
+            </svg>
+            Download
+          </button>
+          <button class="btn" id="clear-r">Clear</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <textarea id="right" spellcheck="false" placeholder='{
+  "Serilog:MinimumLevel:Default": "Information",
+  "Tracing:EnableTracing": "true"
+}'></textarea>
+      </div>
+      <div class="panel-foot">
+        <span class="stat" id="stat-r">—</span>
+        <span class="err" id="err-r"></span>
+      </div>
+    </div>
+
+  </div><!-- .editors -->
+
+  <div class="statusbar">
+    <span>
+      <kbd>Ctrl+Enter</kbd> Flatten &nbsp;·&nbsp;
+      <kbd>Ctrl+⇧+Enter</kbd> Unflatten
+    </span>
+    <span>
+      Arrays: <code>key:0:subkey</code> &nbsp;·&nbsp;
+      Types (bool, int, float) inferred on unflatten
+    </span>
+  </div>
+</div><!-- .workspace -->
+
+<!-- ─── Toast ─────────────────────────────────────────────────────────── -->
+<div class="toast" id="toast">
+  <span id="toast-ic" class="t-ok">✓</span>
+  <span id="toast-tx">Done</span>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════
+   FLATTEN  —  nested JSON  →  colon-separated flat keys
+   All values are coerced to strings (matches .NET IConfiguration).
+   Arrays are indexed: WriteTo:0:Name, WriteTo:1:Name, …
+   Output keys are sorted alphabetically.
+══════════════════════════════════════════════════════════ */
+function flatten(obj, prefix, out) {
+  prefix = prefix || '';
+  out    = out    || {};
+
+  if (Array.isArray(obj)) {
+    for (var i = 0; i < obj.length; i++) {
+      var arrKey = prefix ? prefix + ':' + i : String(i);
+      var item = obj[i];
+      if (item !== null && typeof item === 'object') {
+        flatten(item, arrKey, out);
+      } else {
+        out[arrKey] = item === null ? '' : String(item);
+      }
+    }
+  } else if (obj !== null && typeof obj === 'object') {
+    var keys = Object.keys(obj);
+    for (var k = 0; k < keys.length; k++) {
+      var key = keys[k];
+      var val = obj[key];
+      var flatKey = prefix ? prefix + ':' + key : key;
+      if (val !== null && typeof val === 'object') {
+        flatten(val, flatKey, out);
+      } else {
+        out[flatKey] = val === null ? '' : String(val);
+      }
+    }
+  }
+
+  return out;
+}
+
+/* ══════════════════════════════════════════════════════════
+   UNFLATTEN  —  flat key:value pairs  →  nested JSON
+   Type inference: "true"/"false" → bool, integers → number,
+   floats → number, everything else → string.
+   Numeric path segments reconstruct arrays.
+══════════════════════════════════════════════════════════ */
+function parseVal(s) {
+  if (s === 'true')  return true;
+  if (s === 'false') return false;
+  if (s === 'null')  return null;
+  if (/^-?\d+$/.test(s))         return parseInt(s, 10);
+  if (/^-?\d+\.\d+$/.test(s))    return parseFloat(s);
+  return s;
+}
+
+function unflatten(flat) {
+  var root = {};
+
+  var flatKeys = Object.keys(flat);
+  for (var fi = 0; fi < flatKeys.length; fi++) {
+    var flatKey = flatKeys[fi];
+    var rawVal  = flat[flatKey];
+    var parts   = flatKey.split(':');
+    var cur     = root;
+
+    for (var pi = 0; pi < parts.length - 1; pi++) {
+      var part    = parts[pi];
+      var nextPart = parts[pi + 1];
+      var nextNum  = /^\d+$/.test(nextPart);
+
+      if (Array.isArray(cur)) {
+        var idx = Number(part);
+        if (cur[idx] === undefined || cur[idx] === null || typeof cur[idx] !== 'object') {
+          cur[idx] = nextNum ? [] : {};
+        }
+        cur = cur[idx];
+      } else {
+        if (cur[part] === undefined || cur[part] === null || typeof cur[part] !== 'object') {
+          cur[part] = nextNum ? [] : {};
+        }
+        cur = cur[part];
+      }
+    }
+
+    var last   = parts[parts.length - 1];
+    var parsed = parseVal(rawVal);
+
+    if (Array.isArray(cur)) {
+      cur[Number(last)] = parsed;
+    } else {
+      cur[last] = parsed;
+    }
+  }
+
+  return root;
+}
+
+/* ══════════════════════════════════════════════════════════
+   UI
+══════════════════════════════════════════════════════════ */
+var $l    = document.getElementById('left');
+var $r    = document.getElementById('right');
+var $sl   = document.getElementById('stat-l');
+var $sr   = document.getElementById('stat-r');
+var $el   = document.getElementById('err-l');
+var $er   = document.getElementById('err-r');
+
+function updateStat(ta, el) {
+  if (!ta.value) { el.textContent = '—'; return; }
+  el.textContent = ta.value.length + ' chars · ' + ta.value.split('\n').length + ' lines';
+}
+
+$l.addEventListener('input', function() { updateStat($l, $sl); hideErr($el); });
+$r.addEventListener('input', function() { updateStat($r, $sr); hideErr($er); });
+
+function showErr(el, msg) { el.style.display = 'block'; el.textContent = '⚠ ' + msg; }
+function hideErr(el)      { el.style.display = 'none';  }
+
+var _tt;
+function toast(msg, ok) {
+  var el = document.getElementById('toast');
+  var ic = document.getElementById('toast-ic');
+  var tx = document.getElementById('toast-tx');
+  ic.className = ok === false ? 't-err' : 't-ok';
+  ic.textContent = ok === false ? '✕' : '✓';
+  tx.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(_tt);
+  _tt = setTimeout(function() { el.classList.remove('show'); }, 2300);
+}
+
+/* Flatten: LEFT → RIGHT */
+document.getElementById('btn-flatten').addEventListener('click', function() {
+  hideErr($el);
+  var raw = $l.value.trim();
+  if (!raw) { toast('Paste nested JSON into the left panel first', false); return; }
+  try {
+    var obj    = JSON.parse(raw);
+    var flat   = flatten(obj);
+    var sorted = {};
+    Object.keys(flat).sort().forEach(function(k) { sorted[k] = flat[k]; });
+    $r.value = JSON.stringify(sorted, null, 2);
+    updateStat($r, $sr);
+    hideErr($er);
+    toast('Flattened — ' + Object.keys(sorted).length + ' keys');
+  } catch(e) {
+    showErr($el, e.message);
+    toast('Invalid JSON in left panel', false);
+  }
+});
+
+/* Unflatten: RIGHT → LEFT */
+document.getElementById('btn-unflatten').addEventListener('click', function() {
+  hideErr($er);
+  var raw = $r.value.trim();
+  if (!raw) { toast('Paste flat key:value JSON into the right panel first', false); return; }
+  try {
+    var flat   = JSON.parse(raw);
+    var nested = unflatten(flat);
+    $l.value = JSON.stringify(nested, null, 2);
+    updateStat($l, $sl);
+    hideErr($el);
+    toast('Unflattened — ' + Object.keys(flat).length + ' keys expanded');
+  } catch(e) {
+    showErr($er, e.message);
+    toast('Invalid JSON in right panel', false);
+  }
+});
+
+/* Swap panels */
+document.getElementById('btn-swap').addEventListener('click', function() {
+  var tmp = $l.value;
+  $l.value = $r.value;
+  $r.value = tmp;
+  updateStat($l, $sl);
+  updateStat($r, $sr);
+  hideErr($el);
+  hideErr($er);
+});
+
+/* Copy right panel */
+document.getElementById('btn-copy').addEventListener('click', function() {
+  if (!$r.value) { toast('Nothing to copy — run Flatten first', false); return; }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText($r.value).then(function() {
+      toast('Copied to clipboard');
+    }).catch(function() { fallbackCopy(); });
+  } else {
+    fallbackCopy();
+  }
+  function fallbackCopy() {
+    $r.select();
+    document.execCommand('copy');
+    toast('Copied to clipboard');
+  }
+});
+
+/* Paste into left panel */
+document.getElementById('paste-btn').addEventListener('click', function() {
+  if (navigator.clipboard && navigator.clipboard.readText) {
+    navigator.clipboard.readText().then(function(text) {
+      $l.value = text;
+      updateStat($l, $sl);
+      hideErr($el);
+    }).catch(function() {
+      toast('Allow clipboard permission in your browser', false);
+    });
+  } else {
+    toast('Clipboard API not available — paste manually', false);
+  }
+});
+
+/* Download right panel */
+document.getElementById('btn-dl').addEventListener('click', function() {
+  if (!$r.value) { toast('Nothing to download — run Flatten first', false); return; }
+  var blob = new Blob([$r.value], { type: 'application/json' });
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'flattened.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Downloaded flattened.json');
+});
+
+/* Clear */
+document.getElementById('clear-l').addEventListener('click', function() {
+  $l.value = ''; $sl.textContent = '—'; hideErr($el);
+});
+document.getElementById('clear-r').addEventListener('click', function() {
+  $r.value = ''; $sr.textContent = '—'; hideErr($er);
+});
+
+/* Keyboard shortcuts */
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    if (e.shiftKey) {
+      document.getElementById('btn-unflatten').click();
+    } else {
+      document.getElementById('btn-flatten').click();
+    }
+  }
+});
+</script>
+</body>
+</html>
